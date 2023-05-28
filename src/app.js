@@ -15,10 +15,11 @@ const app = express();
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
 
+//Grabación de las sessions
 app.use(session({
     store: MongoStore.create({
-        mongoUrl: uri,  //VER SI ESTA BIEN! 20230513 - 3:34:00
-        dbName: 'entrega10backend'
+        mongoUrl: uri,
+        dbName: 'entrega11backend'
     }),
     secret: 'mysecret',
     resave: true,
@@ -42,9 +43,10 @@ app.use('/carts', cartRouter);
 
 mongoose.set('strictQuery', false)
 
+//Conexión a la DB
 try{
     await mongoose.connect(uri, {
-        dbName: 'entrega10backend'
+        dbName: 'entrega11backend'
     })
     console.log('DB connected!')
     
