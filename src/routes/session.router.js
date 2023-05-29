@@ -2,7 +2,7 @@ import { Router } from "express";
 import userModel from '../models/user.model.js';
 import session from 'express-session';
 import { createHash, isValidPassword } from "../utils.js";
-
+import passport from "passport";
 
 const router = Router();
 
@@ -11,64 +11,56 @@ router.get('/register', (req, res) => {
     res.render('sessions/register')
 })
 
-router.post('/register', async (req, res) => {
-    const userNew = req.body
-    if (userNew.email === "adminCoder@coder.com") {
-        return res.status(401).render('errors/base', {
-            error: ' No se puede registrar el usuario adminCoder@coder.com'
-        })
-    }
-    userNew.role = "user"
-
-    //Hasheo el password 
-    userNew.password = createHash(req.body.password)
-    
-    const user = new userModel(userNew)
-    await user.save()
+router.post('/register', passport.authenticate('register', {
+    failureRedirect: '/sessions/failRegister'
+}), async (req, res) => {
+    //register no es un nombre reservado, es el nombre que le pusimos en el config de passport
     res.redirect('/sessions/login')
 })
 
-//vista de login
-router.get('/login', async (req, res) => {
+router.get('/failRegister', (req, res) => {
+    res.send({ error: 'failed' })
+})
+
+//vista para registrar usuarios
+router.get('/login', (req, res) => {
     res.render('sessions/login')
 })
 
-router.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-
-    if (email === "adminCoder@coder.com" && password === "adminCod3r123") {
-
-        const admin = {
-            first_name: 'Javier',
-            last_name: 'Piergentili',
-            email: 'adminCoder@coder.com',
-            age: 35,
-            password: 'adminCod3r123',
-            role: 'admin'
-        }
-
-        req.session.user = admin;
-
-    } else {
-
-        const user = await userModel.findOne({ email }).lean().exec();
-        if (!user) {
-            return res.status(401).render('errors/base', {
-                error: 'User not found'
-            });
-        }
-
-        if (!isValidPassword(user, password)){
-            return res.status(403).render('errors/base', {error: 'Incorrect pass'})
-        }
-
-        delete user.password
-        req.session.user = user;
-
+//vista de login
+router.post('/login', passport.authenticate('login', {
+    failureRedirect: '/sessions/failLogin'
+}), async (req, res) => {
+    if (!req.user) {
+        return res.status(400).send({ status: 'error', error: 'Invalid credentials' });
     }
 
+    const user = req.user;
+    if (user.role === 'admin') {
+        req.session.user = {
+            first_name: "Javier",
+            last_name: "Piergentili",
+            email: user.email,
+            age: 35,
+            role: user.role
+        };
+    } else {
+        req.session.user = {
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email,
+            age: user.age,
+            role: user.role
+        };
+    }
+    
+    //register no es un nombre reservado, es el nombre que le pusimos en el config de passport
     res.redirect('/products');
 });
+
+router.get('/failLogin', (req, res) => {
+    res.send({ error: 'failed' })
+})
 
 router.get('/logout', (req, res) => {
     req.session.destroy(err => {
