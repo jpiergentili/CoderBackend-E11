@@ -1,6 +1,8 @@
 import { Router } from "express";
 import userModel from '../models/user.model.js';
 import session from 'express-session';
+import { createHash, isValidPassword } from "../utils.js";
+
 
 const router = Router();
 
@@ -17,6 +19,10 @@ router.post('/register', async (req, res) => {
         })
     }
     userNew.role = "user"
+
+    //Hasheo el password 
+    userNew.password = createHash(req.body.password)
+    
     const user = new userModel(userNew)
     await user.save()
     res.redirect('/sessions/login')
@@ -30,12 +36,7 @@ router.get('/login', async (req, res) => {
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
-    if (email === "adminCoder@coder.com") {
-        if (password !== "adminCod3r123") {
-            return res.status(401).render('errors/base', {
-                error: 'Error en email y/o contraseña'
-            });
-        }
+    if (email === "adminCoder@coder.com" && password === "adminCod3r123") {
 
         const admin = {
             first_name: 'Javier',
@@ -44,19 +45,26 @@ router.post('/login', async (req, res) => {
             age: 35,
             password: 'adminCod3r123',
             role: 'admin'
-        };
+        }
 
         req.session.user = admin;
-    } else {
-        const user = await userModel.findOne({ email, password }).lean().exec();
 
+    } else {
+
+        const user = await userModel.findOne({ email }).lean().exec();
         if (!user) {
             return res.status(401).render('errors/base', {
-                error: 'Error en email y/o contraseña'
+                error: 'User not found'
             });
         }
 
+        if (!isValidPassword(user, password)){
+            return res.status(403).render('errors/base', {error: 'Incorrect pass'})
+        }
+
+        delete user.password
         req.session.user = user;
+
     }
 
     res.redirect('/products');
