@@ -1,7 +1,4 @@
 import { Router } from "express";
-import userModel from '../models/user.model.js';
-import session from 'express-session';
-import { createHash, isValidPassword } from "../utils.js";
 import passport from "passport";
 
 const router = Router();
@@ -62,13 +59,20 @@ router.get('/failLogin', (req, res) => {
     res.send({ error: 'failed' })
 })
 
-router.get('/logout', (req, res) => {
-    req.session.destroy(err => {
-        if (err) res.status(500).render('errors/base', {
-            error: err
-        })
-        else res.redirect('/sessions/login')
+router.get('/github', passport.authenticate('github', { scope: ["user:email"] }), (req, res) => { })
+
+router.get('/githubcallback',
+    passport.authenticate('github', { failureRedirect: '/sessions/login' }),
+    async (req, res) => {
+        req.session.user = req.user
+        res.redirect('/products')
     })
-})
+
+router.get('/logout', function (req, res) {
+    req.logout(function (err) {
+        if (err) { return res.send({ error: 'error al logout'}); }
+        res.redirect('/sessions/login');
+    });
+});
 
 export default router;

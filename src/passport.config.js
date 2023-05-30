@@ -2,12 +2,32 @@ import passport, { strategies } from "passport"
 import local from 'passport-local'
 import userModel from "./models/user.model.js"
 import { createHash, isValidPassword } from "./utils.js"
-
+import GitHubStrategy from 'passport-github2'
 
 const LocalStrategy = local.Strategy
 
 //funcion que se utilzará en app.js y que contiene toda la configuración de passport
 const initializePassport = () => {
+
+    passport.use('github', new GitHubStrategy({
+        clientID: 'Iv1.ded089f1988af0f6',
+        clientSecret: '7a2c5a30a191fb0c4303473e450a67bab14e1e5f',
+        callbackURL: 'http://localhost:8080/sessions/githubcallback'
+    }, async (accessToken, refreshToken, profile, done) => {
+        console.log(profile)
+        try{
+            const user = await userModel.findOne({ email: profile._json.email })
+            if (user) return done(null, user) //si el usuario ya esta registrado que devuelva el mismo usuario
+            //en cambio, si no esta registrado:
+            const newUser = await userModel.create({
+                first_name: profile._json.name,
+                email: profile._json.email
+            })
+            return done(null, newUser)
+        } catch (err) {
+            return done('Error to login with GitHub')
+        }
+    }))
 
     passport.use('register', new LocalStrategy({
         passReqToCallback: true,
